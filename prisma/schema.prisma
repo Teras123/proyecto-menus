@@ -12,112 +12,64 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+model Usuario {
+    id        Int       @id @default(autoincrement())
+    nombre    String
+    email     String    @unique
+    password  String
+    rol       String    // 'admin', 'medico', 'cliente'
+    creadoEn  DateTime  @default(now())
 
-enum ClassifierType {
-  PRESENTATION
-  CATEGORY
-  SUBCATEGORY
+    Medico    Medico?
+    Cliente   Cliente?
 }
 
-enum WeekDay {
-  MONDAY
-  TUESDAY
-  WEDNESDAY
-  THURSDAY
-  FRIDAY
-  SATURDAY
-  SUNDAY
+model Medico {
+    id             Int            @id @default(autoincrement())
+    usuarioId      Int            @unique
+    especialidadId Int
+    telefono       String?
+    direccion      String?
+
+    Usuario        Usuario        @relation(fields: [usuarioId], references: [id])
+    Especialidad   Especialidad   @relation(fields: [especialidadId], references: [id])
+    Citas          Cita[]
+    Disponibilidades Disponibilidad[]
 }
 
-model Client {
-  id        Int          @id @default(autoincrement())
-  name      String
-  email     String       @unique
-  menus     ClientMenu[]
-  createdAt DateTime     @default(now())
-  Invoice   Invoice[]
+model Cliente {
+    id        Int       @id @default(autoincrement())
+    usuarioId Int       @unique
+
+    Usuario   Usuario   @relation(fields: [usuarioId], references: [id])
+    Citas     Cita[]
 }
 
-model ClientMenu {
-  id        Int     @id @default(autoincrement())
-  client    Client  @relation(fields: [clientId], references: [id])
-  clientId  Int
-  menu      Menu    @relation(fields: [menuId], references: [id])
-  menuId    Int
-  dayOfWeek WeekDay
-  totalCost Float   @default(0)
+model Especialidad {
+    id      Int       @id @default(autoincrement())
+    nombre  String
+    Medicos Medico[]
 }
 
-model Classifier {
-  id       Int            @id @default(autoincrement())
-  name     String
-  type     ClassifierType // Presentación, Categoría o Subcategoría
-  products Product[]
+model Cita {
+    id        Int      @id @default(autoincrement())
+    fecha     DateTime
+    motivo    String?
+    estado    String   // 'programada', 'completada', 'cancelada'
+    medicoId  Int
+    clienteId Int
+
+    Medico    Medico   @relation(fields: [medicoId], references: [id])
+    Cliente   Cliente  @relation(fields: [clienteId], references: [id])
 }
 
-model Invoice {
-  id        Int               @id @default(autoincrement())
-  client    Client            @relation(fields: [clientId], references: [id])
-  clientId  Int
-  totalCost Float
-  createdAt DateTime          @default(now())
-  menuItems InvoiceMenuItem[]
-}
+model Disponibilidad {
+    id                Int       @id @default(autoincrement())
+    medicoId          Int
+    diaSemana         Int       // 0 para Domingo, 1 para Lunes, ..., 6 para Sábado
+    horaInicio        String    // Formato: 'HH:MM'
+    horaFin           String    // Formato: 'HH:MM'
+    aplicarSemanalmente Boolean // Define si se repite semanalmente o es único
 
-model InvoiceMenuItem {
-  id         Int      @id @default(autoincrement())
-  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
-  invoiceId  Int
-  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
-  menuItemId Int
-  quantity   Int
-  totalCost  Float // Costo total de los insumos
-}
-
-model Menu {
-  id         Int          @id @default(autoincrement())
-  name       String
-  items      MenuItem[]
-  extraCost  Float        @default(0)
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  isActive   Boolean      @default(true)  // Nuevo campo para activar/desactivar el menú
-  ClientMenu ClientMenu[]
-}
-
-
-
-model MenuItem {
-  id              Int               @id @default(autoincrement())
-  menu            Menu              @relation(fields: [menuId], references: [id])
-  menuId          Int
-  product         Product           @relation(fields: [productId], references: [id])
-  productId       Int
-  quantity        Int
-  cost            Float // Costo total del insumo (unitPrice * quantity)
-  InvoiceMenuItem InvoiceMenuItem[]
-  isActive        Boolean           @default(true) // Agregamos el campo para manejar la desactivación
-}
-
-
-model PriceHistory {
-  id        Int      @id @default(autoincrement())
-  product   Product  @relation(fields: [productId], references: [id])
-  productId Int
-  oldPrice  Float
-  newPrice  Float
-  changedBy String // Usuario que modificó el precio
-  changedAt DateTime @default(now())
-}
-
-model Product {
-  id           Int            @id @default(autoincrement())
-  description  String
-  costPrice    Float
-  unitPrice    Float
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  classifiers  Classifier[]
-  priceHistory PriceHistory[]
-  MenuItem     MenuItem[]
+    Medico            Medico    @relation(fields: [medicoId], references: [id])
 }
